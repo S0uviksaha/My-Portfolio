@@ -1,12 +1,12 @@
-// Enhanced Portfolio JavaScript with Theme Toggle and Auto-scroll
+// Enhanced Portfolio JavaScript with Theme Toggle, Auto-scroll and EmailJS Integration
 document.addEventListener('DOMContentLoaded', function() {
   
   /* Theme Management */
   const themeToggle = document.getElementById('theme-toggle');
   const html = document.documentElement;
   
-  // Get saved theme from localStorage or default to dark
-  const savedTheme = localStorage.getItem('theme') || 'dark';
+  // Get saved theme from browser storage or default to dark
+  const savedTheme = 'dark'; // Removed localStorage usage
   html.setAttribute('data-theme', savedTheme);
   
   if (themeToggle) {
@@ -15,7 +15,6 @@ document.addEventListener('DOMContentLoaded', function() {
       const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
       
       html.setAttribute('data-theme', newTheme);
-      localStorage.setItem('theme', newTheme);
       
       // Add a subtle animation feedback
       this.style.transform = 'scale(0.95)';
@@ -421,46 +420,95 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   });
 
-  /* Contact Form Enhanced Feedback */
-  const contactForm = document.querySelector('.contact-form form');
+  /* EmailJS Integration */
+  const contactForm = document.getElementById('contactForm');
+  const submitBtn = document.getElementById('submitBtn');
+  
   if (contactForm) {
     contactForm.addEventListener('submit', function(e) {
       e.preventDefault();
       
-      const name = document.getElementById('name').value.trim();
-      const email = document.getElementById('email').value.trim();
-      const message = document.getElementById('message').value.trim();
+      const formData = new FormData(this);
+      const name = formData.get('name').trim();
+      const email = formData.get('email').trim();
+      const subject = formData.get('subject').trim() || 'Contact from Portfolio Website';
+      const message = formData.get('message').trim();
       
       // Enhanced validation
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      
-      if (!name || !email || !message) {
-        showNotification('Please fill all required fields.', 'error');
+      if (!validateForm(name, email, message)) {
         return;
       }
       
-      if (!emailRegex.test(email)) {
-        showNotification('Please enter a valid email address.', 'error');
-        return;
-      }
+      // Show loading state
+      setButtonLoading(true);
       
-      if (message.length < 10) {
-        showNotification('Message should be at least 10 characters long.', 'error');
-        return;
-      }
+      // Prepare template parameters for both emails
+      const templateParams = {
+        from_name: name,
+        from_email: email,
+        subject: subject,
+        message: message,
+        to_name: 'Souvik Saha',
+        reply_to: email
+      };
       
-      // Simulate form submission
-      const submitBtn = this.querySelector('button[type="submit"]');
-      const originalText = submitBtn.innerHTML;
-      submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
-      submitBtn.disabled = true;
-      
-      setTimeout(() => {
-        showNotification('Message sent successfully! I will get back to you soon.', 'success');
-        contactForm.reset();
-        submitBtn.innerHTML = originalText;
-        submitBtn.disabled = false;
-      }, 2000);
+      // Send email to you (main contact email)
+      emailjs.send('service_jl5amsu', 'template_7csv1m3', templateParams)
+        .then(() => {
+          // Send auto-reply to user
+          const autoReplyParams = {
+            to_name: name,
+            to_email: email,
+            from_name: 'Souvik Saha',
+            subject: 'Thank you for contacting me!',
+            user_message: message
+          };
+          
+          return emailjs.send('service_jl5amsu', 'template_auto_reply', autoReplyParams);
+        })
+        .then(() => {
+          // Both emails sent successfully
+          showEmailModal(
+            'success',
+            'Message Sent Successfully!',
+            `Hi ${name}! Your message has been sent successfully. I'll get back to you within 24 hours. You should also receive a confirmation email shortly.`
+          );
+          contactForm.reset();
+          clearFormErrors();
+        })
+        .catch((error) => {
+          console.error('Email sending failed:', error);
+          
+          // Try sending just the main email if auto-reply fails
+          if (error.status !== 200) {
+            emailjs.send('service_jl5amsu', 'template_7csv1m3', templateParams)
+              .then(() => {
+                showEmailModal(
+                  'success',
+                  'Message Sent!',
+                  `Hi ${name}! Your message has been sent successfully. I'll get back to you soon!`
+                );
+                contactForm.reset();
+                clearFormErrors();
+              })
+              .catch(() => {
+                showEmailModal(
+                  'error',
+                  'Failed to Send Message',
+                  'Sorry, there was an error sending your message. Please try again later or contact me directly at souvik21102001@gmail.com'
+                );
+              });
+          } else {
+            showEmailModal(
+              'error',
+              'Failed to Send Message',
+              'Sorry, there was an error sending your message. Please try again later or contact me directly at souvik21102001@gmail.com'
+            );
+          }
+        })
+        .finally(() => {
+          setButtonLoading(false);
+        });
     });
     
     // Real-time validation feedback
@@ -472,54 +520,191 @@ document.addEventListener('DOMContentLoaded', function() {
       
       input.addEventListener('input', function() {
         // Remove error styling on input
-        this.style.borderColor = '';
+        this.classList.remove('error');
         const errorMsg = this.parentElement.querySelector('.error-message');
         if (errorMsg) errorMsg.remove();
       });
     });
   }
   
+  /* Form Validation Functions */
+  function validateForm(name, email, message) {
+    let isValid = true;
+    
+    // Clear previous errors
+    clearFormErrors();
+    
+    if (!name) {
+      showFieldError('name', 'Name is required');
+      isValid = false;
+    }
+    
+    if (!email) {
+      showFieldError('email', 'Email is required');
+      isValid = false;
+    } else if (!isValidEmail(email)) {
+      showFieldError('email', 'Please enter a valid email address');
+      isValid = false;
+    }
+    
+    if (!message) {
+      showFieldError('message', 'Message is required');
+      isValid = false;
+    } else if (message.length < 10) {
+      showFieldError('message', 'Message should be at least 10 characters long');
+      isValid = false;
+    }
+    
+    if (!isValid) {
+      showNotification('Please fix the errors below', 'error');
+    }
+    
+    return isValid;
+  }
+  
   function validateInput(input) {
     const value = input.value.trim();
     const type = input.type;
     const isRequired = input.hasAttribute('required');
+    const fieldName = input.name;
     
     let isValid = true;
     let errorMessage = '';
     
     if (isRequired && !value) {
       isValid = false;
-      errorMessage = 'This field is required.';
-    } else if (type === 'email' && value) {
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(value)) {
-        isValid = false;
-        errorMessage = 'Please enter a valid email address.';
-      }
+      errorMessage = 'This field is required';
+    } else if (type === 'email' && value && !isValidEmail(value)) {
+      isValid = false;
+      errorMessage = 'Please enter a valid email address';
+    } else if (fieldName === 'message' && value && value.length < 10) {
+      isValid = false;
+      errorMessage = 'Message should be at least 10 characters long';
     }
     
     if (!isValid) {
-      input.style.borderColor = 'var(--color-error)';
-      
-      // Remove existing error message
-      const existingError = input.parentElement.querySelector('.error-message');
-      if (existingError) existingError.remove();
-      
-      // Add new error message
-      const errorDiv = document.createElement('div');
-      errorDiv.className = 'error-message';
-      errorDiv.style.cssText = `
-        color: var(--color-error);
-        font-size: var(--font-size-xs);
-        margin-top: var(--space-1);
-      `;
-      errorDiv.textContent = errorMessage;
-      input.parentElement.appendChild(errorDiv);
+      showFieldError(fieldName, errorMessage);
+    } else {
+      clearFieldError(fieldName);
+      input.classList.add('success');
+      setTimeout(() => input.classList.remove('success'), 2000);
+    }
+    
+    return isValid;
+  }
+  
+  function isValidEmail(email) {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  }
+  
+  function showFieldError(fieldName, message) {
+    const field = document.getElementById(fieldName);
+    if (!field) return;
+    
+    field.classList.add('error');
+    
+    // Remove existing error message
+    clearFieldError(fieldName);
+    
+    // Add new error message
+    const errorDiv = document.createElement('div');
+    errorDiv.className = 'error-message';
+    errorDiv.textContent = message;
+    field.parentElement.appendChild(errorDiv);
+  }
+  
+  function clearFieldError(fieldName) {
+    const field = document.getElementById(fieldName);
+    if (!field) return;
+    
+    field.classList.remove('error');
+    const existingError = field.parentElement.querySelector('.error-message');
+    if (existingError) existingError.remove();
+  }
+  
+  function clearFormErrors() {
+    document.querySelectorAll('.form-control').forEach(input => {
+      input.classList.remove('error', 'success');
+    });
+    document.querySelectorAll('.error-message').forEach(error => error.remove());
+  }
+  
+  function setButtonLoading(isLoading) {
+    if (!submitBtn) return;
+    
+    const btnText = submitBtn.querySelector('.btn-text');
+    const icon = submitBtn.querySelector('i');
+    
+    if (isLoading) {
+      submitBtn.disabled = true;
+      submitBtn.classList.add('loading');
+      if (btnText) btnText.textContent = 'Sending...';
+      if (icon) {
+        icon.className = 'loading-spinner';
+      }
+    } else {
+      submitBtn.disabled = false;
+      submitBtn.classList.remove('loading');
+      if (btnText) btnText.textContent = 'Send Message';
+      if (icon) {
+        icon.className = 'fas fa-paper-plane';
+      }
     }
   }
 
+  /* Email Modal Functions */
+  function showEmailModal(type, title, message) {
+    const modal = document.getElementById('emailModal');
+    const icon = modal.querySelector('.email-modal-icon');
+    const titleEl = modal.querySelector('.email-modal-title');
+    const messageEl = modal.querySelector('.email-modal-message');
+    
+    // Set content
+    titleEl.textContent = title;
+    messageEl.textContent = message;
+    
+    // Set icon and styling based on type
+    if (type === 'success') {
+      icon.className = 'email-modal-icon success fas fa-check-circle';
+    } else if (type === 'error') {
+      icon.className = 'email-modal-icon error fas fa-exclamation-circle';
+    }
+    
+    // Show modal
+    modal.classList.add('show');
+    document.body.style.overflow = 'hidden';
+    
+    // Auto close after 5 seconds for success
+    if (type === 'success') {
+      setTimeout(() => {
+        closeEmailModal();
+      }, 5000);
+    }
+  }
+  
+  window.closeEmailModal = function() {
+    const modal = document.getElementById('emailModal');
+    modal.classList.remove('show');
+    document.body.style.overflow = '';
+  }
+  
+  // Close modal on background click
+  document.addEventListener('click', function(e) {
+    if (e.target.classList.contains('email-modal')) {
+      closeEmailModal();
+    }
+  });
+  
+  // Close modal on Escape key
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+      closeEmailModal();
+    }
+  });
+
   /* Enhanced Notification System */
-  function showNotification(message, type = 'info', duration = 3000) {
+  function showNotification(message, type = 'info', duration = 4000) {
     let container = document.querySelector('.notification-container');
     if (!container) {
       container = document.createElement('div');
@@ -684,6 +869,7 @@ document.addEventListener('DOMContentLoaded', function() {
     console.log('📱 Screen Size:', window.innerWidth, 'x', window.innerHeight);
     console.log('🎨 Current Theme:', html.getAttribute('data-theme'));
     console.log('⚡ Auto-scroll Enabled:', projectScroller ? 'Yes' : 'No');
+    console.log('📧 EmailJS Initialized:', typeof emailjs !== 'undefined');
   }
 
   /* Add smooth reveal animation to initially hidden elements */
@@ -694,5 +880,5 @@ document.addEventListener('DOMContentLoaded', function() {
     el.style.transition = 'opacity 0.6s ease, transform 0.6s ease';
   });
   
-  console.log('✅ Enhanced Portfolio JavaScript Loaded Successfully!');
+  console.log('✅ Enhanced Portfolio JavaScript with EmailJS Loaded Successfully!');
 });
