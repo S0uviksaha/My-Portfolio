@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -8,6 +7,16 @@
     <link rel="stylesheet" href="style.css">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script type="text/javascript"
+            src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js">
+    </script>
+    <script type="text/javascript">
+    (function(){
+        emailjs.init({
+            publicKey: "bNLFH_5PwxwRcPWFu",
+        });
+    })();
+    </script>
 </head>
 <body>
     <!-- Navigation -->
@@ -667,26 +676,26 @@
                 </div>
 
                 <div class="contact-form">
-                    <form>
+                    <form id="contactForm">
                         <div class="form-group">
                             <label for="name" class="form-label">Name *</label>
-                            <input type="text" id="name" class="form-control" required>
+                            <input type="text" id="name" name="name" class="form-control" required>
                         </div>
                         <div class="form-group">
                             <label for="email" class="form-label">Email *</label>
-                            <input type="email" id="email" class="form-control" required>
+                            <input type="email" id="email" name="email" class="form-control" required>
                         </div>
                         <div class="form-group">
                             <label for="subject" class="form-label">Subject</label>
-                            <input type="text" id="subject" class="form-control">
+                            <input type="text" id="subject" name="subject" class="form-control">
                         </div>
                         <div class="form-group">
                             <label for="message" class="form-label">Message *</label>
-                            <textarea id="message" class="form-control" rows="5" required></textarea>
+                            <textarea id="message" name="message" class="form-control" rows="5" required></textarea>
                         </div>
-                        <button type="submit" class="btn btn--primary btn--full">
+                        <button type="submit" class="btn btn--primary btn--full" id="submitBtn">
                             <i class="fas fa-paper-plane"></i>
-                            Send Message
+                            <span class="btn-text">Send Message</span>
                         </button>
                     </form>
                 </div>
@@ -717,6 +726,22 @@
 
     <!-- Notification Container -->
     <div class="notification-container"></div>
+
+    <!-- Email Success/Error Modal -->
+    <div class="email-modal" id="emailModal">
+        <div class="email-modal-content">
+            <div class="email-modal-header">
+                <i class="email-modal-icon"></i>
+                <h3 class="email-modal-title"></h3>
+            </div>
+            <div class="email-modal-body">
+                <p class="email-modal-message"></p>
+            </div>
+            <div class="email-modal-footer">
+                <button class="btn btn--primary" onclick="closeEmailModal()">Close</button>
+            </div>
+        </div>
+    </div>
 
     <script src="app.js"></script>
 </body>
